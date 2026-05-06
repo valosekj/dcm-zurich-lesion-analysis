@@ -39,34 +39,6 @@ sub_ID=$1
 ses_ID=$2
 
 ###########################
-# T2w sagittal
-###########################
-file_t2_sag=${sub_ID}_${ses_ID}_acq-sagittal_T2w
-
-########
-# Segment the lesion and spinal cord
-########
-# Note: `-largest 1` is used to keep only the largest connected component to filter out possible small false positive blobs
-sct_deepseg lesion_sci_t2 -i ${file_t2_sag}.nii.gz -largest 1 -qc ./qc
-# Output files are:
-#   - ${file_t2_sag}_lesion_seg.nii.gz  # we can ignore this file as we segment lesions from T2w ax
-#   - ${file_t2_sag}_sc_seg.nii.gz
-# Generate sagittal spinal cord QC (because sct_deepseg generates only axial QC)
-sct_qc -i ${file_t2_sag}.nii.gz -d ${file_t2_sag}_sc_seg.nii.gz -s ${file_t2_sag}_sc_seg.nii.gz -p sct_deepseg_lesion -plane sagittal -qc ./qc
-
-########
-# Manual mid-vertebrae C3 and C7 labeling
-########
-sct_label_utils -i ${file_t2_sag}.nii.gz -create-viewer 3,7 -o ${file_t2_sag}_mid_vert_c3c7.nii.gz
-
-########
-# Registration to the template -- 2 labels -- mid vertebrae C3 and C7
-########
-sct_register_to_template -i ${file_t2_sag}.nii.gz -s ${file_t2_sag}_sc_seg.nii.gz -l ${file_t2_sag}_mid_vert_c3c7.nii.gz -c t2 -ofolder t2_sag_mid_vert_c3c7 -qc ./qc
-# Check the QC
-open qc/index.html
-
-###########################
 # T2w axial
 ###########################
 file_t2_ax=${sub_ID}_${ses_ID}_acq-axial_T2w
