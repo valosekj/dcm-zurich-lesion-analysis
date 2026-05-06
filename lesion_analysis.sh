@@ -48,22 +48,22 @@ file_t2_ax_discs=${sub_ID}_${ses_ID}_acq-axial_T2w_labels-manual     # copied fr
 ########
 # Register the template directly to the T2w ax
 ########
-sct_register_to_template -i ${file_t2_ax}.nii.gz -s ${file_t2_ax_seg}.nii.gz -ldisc ${file_t2_ax_discs}.nii.gz -ref subject -param step=1,type=seg,algo=centermassrot,iter=10:step=2,type=seg,algo=bsplinesyn,slicewise=1,iter=10 -c t2 -ofolder t2w_ax_reg -qc ./qc
+sct_register_to_template -i "${file_t2_ax}.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -ldisc "${file_t2_ax_discs}.nii.gz" -ref subject -param step=1,type=seg,algo=centermassrot,iter=10:step=2,type=seg,algo=bsplinesyn,slicewise=1,iter=10 -c t2 -ofolder t2w_ax_reg -qc ./qc
 # Check the QC
 open qc/index.html
 
 ########
 # Warp atlas with white matter tracts
 ########
-sct_warp_template -d ${file_t2_ax}.nii.gz -w t2w_ax_reg/warp_template2anat.nii.gz -ofolder t2w_ax_reg -qc ./qc
+sct_warp_template -d "${file_t2_ax}.nii.gz" -w t2w_ax_reg/warp_template2anat.nii.gz -ofolder t2w_ax_reg -qc ./qc
 # Check the QC
 open qc/index.html
 # Generate QC report to assess warped PAM50 levels
-sct_qc -i ${file_t2_ax}.nii.gz -s t2w_ax_reg/template/PAM50_levels.nii.gz -p sct_label_vertebrae -qc ./qc -qc-subject "PAM50_levels_2_t2w_ax"
+sct_qc -i "${file_t2_ax}.nii.gz" -s t2w_ax_reg/template/PAM50_levels.nii.gz -p sct_label_vertebrae -qc ./qc -qc-subject "PAM50_levels_2_t2w_ax"
 # Check the QC
 open qc/index.html
 
 ########
 # Compute atlas-based lesion metrics
 ########
-sct_analyze_lesion -m ${file_t2_ax}_lesion_seg.nii.gz -s ${file_t2_ax_seg}.nii.gz -f t2w_ax_reg -qc ./qc
+sct_analyze_lesion -m "${file_t2_ax}_lesion_seg.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -f t2w_ax_reg -qc ./qc
