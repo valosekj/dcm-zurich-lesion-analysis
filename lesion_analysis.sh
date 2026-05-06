@@ -1,7 +1,18 @@
 ###########################
+# Parse input arguments
+###########################
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <sub_ID> <ses_ID>"
+    echo "Example: $0 sub-080 ses-M0"
+    exit 1
+fi
+sub_ID=$1
+ses_ID=$2
+
+###########################
 # T2w sagittal
 ###########################
-file_t2_sag=sub-080_ses-M0_acq-sagittal_T2w
+file_t2_sag=${sub_ID}_${ses_ID}_acq-sagittal_T2w
 
 ########
 # Segment the lesion and spinal cord
@@ -29,9 +40,9 @@ open qc/index.html
 ###########################
 # T2w axial
 ###########################
-file_t2_ax=sub-080_ses-M0_acq-axial_T2w
-file_t2_ax_seg=sub-080_ses-M0_acq-axial_T2w_label-SC_seg        # copied from derivatives/labels
-file_t2_ax_discs=sub-080_ses-M0_acq-axial_T2w_labels-manual     # copied from derivatives/labels
+file_t2_ax=${sub_ID}_${ses_ID}_acq-axial_T2w
+file_t2_ax_seg=${sub_ID}_${ses_ID}_acq-axial_T2w_label-SC_seg        # copied from derivatives/labels
+file_t2_ax_discs=${sub_ID}_${ses_ID}_acq-axial_T2w_labels-manual     # copied from derivatives/labels
 
 ########
 # Register the template directly to the T2w ax
