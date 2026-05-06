@@ -5,8 +5,8 @@ The pipeline registers the PAM50 template to the T2w axial image using disc labe
 
 ## Prerequisites
 
-- [Spinal Cord Toolbox (SCT)](https://spinalcordtoolbox.com) installed and on `PATH`
-- Manual files copied from `derivatives/labels` into the working directory:
+- [Spinal Cord Toolbox (SCT)](https://spinalcordtoolbox.com)
+- Files copied from `derivatives/labels` into the working directory:
   - `<sub>_<ses>_acq-axial_T2w_label-SC_seg.nii.gz` — SC segmentation
   - `<sub>_<ses>_acq-axial_T2w_labels-manual.nii.gz` — disc labels
 
