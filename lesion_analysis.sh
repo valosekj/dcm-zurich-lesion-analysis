@@ -1,3 +1,32 @@
+#!/usr/bin/env bash
+#
+# Atlas-based lesion analysis.
+#
+# The script performs the following steps:
+#   1. Register the PAM50 template to T2w axial using all available disc labels (i.e., >2 labels registration)
+#   2. Warp the white matter atlas to T2w axial space
+#   3. Compute atlas-based lesion metrics from the T2w axial lesion segmentation
+#
+# Prerequisites:
+#   - Spinal Cord Toolbox (SCT): https://spinalcordtoolbox.com
+#   - Manual files copied from derivatives/labels:
+#       <sub>_<ses>_acq-axial_T2w_label-SC_seg.nii.gz   (spinal cord segmentation)
+#       <sub>_<ses>_acq-axial_T2w_labels-manual.nii.gz  (disc labels)
+#
+# Usage:
+#   bash lesion_analysis.sh <sub_ID> <ses_ID>
+#
+# Example:
+#   bash lesion_analysis.sh sub-080 ses-M0
+#
+# Outputs:
+#   - qc/                      QC reports (open qc/index.html to review)
+#   - t2w_ax_reg/              T2w ax → template registration + warped atlas
+#   - *_lesion_analysis.xlsx   Atlas-based lesion metrics (per white matter tract)
+#
+# Author: Jan Valosek
+#
+
 ###########################
 # Parse input arguments
 ###########################
