@@ -66,4 +66,4 @@ open qc/index.html
 ########
 # Compute atlas-based lesion metrics
 ########
-sct_analyze_lesion -m "${file_t2_ax}_lesion_seg.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -f t2w_ax_reg -qc ./qc
+sct_analyze_lesion -m "${file_t2_ax}_lesion_seg.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -f t2w_ax_reg
