@@ -67,3 +67,9 @@ open qc/index.html
 # Compute atlas-based lesion metrics
 ########
 sct_analyze_lesion -m "${file_t2_ax}_lesion_seg.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -f t2w_ax_reg
+
+########
+# Axial lesion QC so we can see the lesion and compare it to the warped atlas
+########
+
+sct_qc -i "${file_t2_ax}.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -d "${file_t2_ax}_lesion_seg.nii.gz" -p sct_deepseg_lesion -plane axial
