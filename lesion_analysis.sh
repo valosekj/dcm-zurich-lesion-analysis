@@ -98,12 +98,24 @@ done
 # ------------------------------------------------------------------------------
 # Register the PAM50 template to T2w axial
 # ------------------------------------------------------------------------------
-sct_register_to_template -i "${file_t2_ax}.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -ldisc "${file_t2_ax_discs}.nii.gz" -ref subject -param step=1,type=seg,algo=centermassrot,iter=10:step=2,type=seg,algo=bsplinesyn,slicewise=1,iter=10 -c t2 -ofolder t2w_ax_reg -qc "${PATH_QC}" -qc-subject "${SUBJECT}"
+sct_register_to_template \
+  -i "${file_t2_ax}.nii.gz" \
+  -s "${file_t2_ax_seg}.nii.gz" \
+  -ldisc "${file_t2_ax_discs}.nii.gz" \
+  -ref subject \
+  -param step=1,type=seg,algo=centermassrot,iter=10:step=2,type=seg,algo=bsplinesyn,slicewise=1,iter=10 \
+  -c t2 \
+  -ofolder t2w_ax_reg \
+  -qc "${PATH_QC}" -qc-subject "${SUBJECT}"
 
 # ------------------------------------------------------------------------------
 # Warp atlas with white matter tracts
 # ------------------------------------------------------------------------------
-sct_warp_template -d "${file_t2_ax}.nii.gz" -w t2w_ax_reg/warp_template2anat.nii.gz -ofolder t2w_ax_reg -qc "${PATH_QC}" -qc-subject "${SUBJECT}"
+sct_warp_template \
+  -d "${file_t2_ax}.nii.gz" \
+  -w t2w_ax_reg/warp_template2anat.nii.gz \
+  -ofolder t2w_ax_reg \
+  -qc "${PATH_QC}" -qc-subject "${SUBJECT}"
 
 # Generate QC report to assess warped PAM50 levels
 sct_qc -i "${file_t2_ax}.nii.gz" -s t2w_ax_reg/template/PAM50_levels.nii.gz -p sct_label_vertebrae -qc "${PATH_QC}" -qc-subject "${SUBJECT}"
