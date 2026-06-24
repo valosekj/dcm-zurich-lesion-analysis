@@ -96,12 +96,22 @@ for f in "${file_t2_ax_seg}.nii.gz" "${file_t2_ax_discs}.nii.gz" "${file_t2_ax_l
 done
 
 # ------------------------------------------------------------------------------
+# Keep only the C3 and C7 disc labels for registration to PAM50 template as
+# -ref subject is only compatible with 1 or 2 landmarks labels
+# Details: https://docs.google.com/presentation/d/1QOtSp75yDt19VFF4k3vksUA28yUMWqfkcBnsnMuNkek/edit?slide=id.p66#slide=id.p66
+# ------------------------------------------------------------------------------
+sct_label_utils -i "${file_t2_ax_discs}.nii.gz" -display
+
+sct_label_utils -i "${file_t2_ax_discs}.nii.gz" -keep 3,7 -o "${file_t2_ax_discs}_C3C7.nii.gz"
+sct_label_utils -i "${file_t2_ax_discs}_C3C7.nii.gz" -display
+
+# ------------------------------------------------------------------------------
 # Register the PAM50 template to T2w axial
 # ------------------------------------------------------------------------------
 sct_register_to_template \
   -i "${file_t2_ax}.nii.gz" \
   -s "${file_t2_ax_seg}.nii.gz" \
-  -ldisc "${file_t2_ax_discs}.nii.gz" \
+  -ldisc "${file_t2_ax_discs}_C3C7.nii.gz" \
   -ref subject \
   -param step=1,type=seg,algo=centermassrot,iter=10:step=2,type=seg,algo=bsplinesyn,slicewise=1,iter=10 \
   -c t2 \
