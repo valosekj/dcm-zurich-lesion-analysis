@@ -10,6 +10,10 @@ The pipeline registers the PAM50 template to the T2w axial image using disc labe
   - `<sub>_<ses>_acq-axial_T2w_label-SC_seg.nii.gz` — SC segmentation
   - `<sub>_<ses>_acq-axial_T2w_labels-manual.nii.gz` — disc labels -- note that only 2 disc labels are used as `sct_register_to_template -ref subject` supports only 2 labels.
 
+```console
+sct_label_utils -i "${file_t2_ax_discs}.nii.gz" -keep 3,7 -o "${file_t2_ax_discs}_C3C7.nii.gz"
+```
+
 ## Usage
 
 Run the pipeline from the subject's session directory (where the NIfTI files live):
