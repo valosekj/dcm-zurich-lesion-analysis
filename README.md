@@ -8,7 +8,7 @@ The pipeline registers the PAM50 template to the T2w axial image using disc labe
 - [Spinal Cord Toolbox (SCT)](https://spinalcordtoolbox.com)
 - Files copied from `derivatives/labels` into the working directory:
   - `<sub>_<ses>_acq-axial_T2w_label-SC_seg.nii.gz` — SC segmentation
-  - `<sub>_<ses>_acq-axial_T2w_labels-manual.nii.gz` — disc labels
+  - `<sub>_<ses>_acq-axial_T2w_labels-manual.nii.gz` — disc labels -- note that only 2 disc labels are used as `sct_register_to_template -ref subject` supports only 2 labels.
 
 ## Usage
 
@@ -28,7 +28,7 @@ bash lesion_analysis.sh sub-080 ses-M0
 
 | Step | Input | Command | Output |
 |------|-------|---------|--------|
-| 1. Template registration to T2w ax (>2 disc labels) | SC seg + disc labels | `sct_register_to_template` | `t2w_ax_reg/` |
+| 1. Template registration to T2w ax (2 disc labels) | SC seg + disc labels | `sct_register_to_template` | `t2w_ax_reg/` |
 | 2. Atlas warping (T2w ax) | Warp from step 1 | `sct_warp_template` | `t2w_ax_reg/template/` |
 | 3. Lesion metrics | Lesion seg + warped atlas | `sct_analyze_lesion` | `*_lesion_analysis.xlsx` |
 
