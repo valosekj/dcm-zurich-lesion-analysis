@@ -1,9 +1,9 @@
 {
-  "path_data"   : "~/data/data.neuro.polymtl.ca/dcm-zurich",
-  "path_output" : "~/results/dcm-zurich-lesion-analysis/dcm-zurich-lesion-analysis_2026-06-01",
+  "path_data"   : "~/data/dcm-zurich",
+  "path_output" : "~/results/dcm-zurich-lesion-analysis/dcm-zurich-lesion-analysis_2026-06-24",
   "script"      : "~/code/dcm-zurich-lesion-analysis/lesion_analysis.sh",
   "jobs"        : 8,
-  "ses_subjects": [
+  "include_list": [
     "sub-001/ses-M0",
     "sub-008/ses-M0",
     "sub-010/ses-M0",
