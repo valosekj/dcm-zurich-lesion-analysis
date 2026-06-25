@@ -115,6 +115,10 @@ sct_label_utils -i "${file_t2_ax_discs}.nii.gz" -display
 sct_label_utils -i "${file_t2_ax_discs}.nii.gz" -keep 3,7 -o "${file_t2_ax_discs}_C3C7.nii.gz"
 sct_label_utils -i "${file_t2_ax_discs}_C3C7.nii.gz" -display
 
+# Sagittal disc labels QCs
+sct_qc -i "${file_t2_ax}.nii.gz" -s "${file_t2_ax_discs}.nii.gz" -p sct_label_utils -qc "${PATH_QC}" -qc-subject "discs_all"
+sct_qc -i "${file_t2_ax}.nii.gz" -s "${file_t2_ax_discs}_C3C7.nii.gz" -p sct_label_utils -qc "${PATH_QC}" -qc-subject "discs_C3C7"
+
 # ------------------------------------------------------------------------------
 # Register the PAM50 template to T2w axial
 # ------------------------------------------------------------------------------
