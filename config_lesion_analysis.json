@@ -1,6 +1,6 @@
 {
   "path_data"   : "~/data/dcm-zurich",
-  "path_output" : "~/results/dcm-zurich-lesion-analysis/dcm-zurich-lesion-analysis_2026-06-24",
+  "path_output" : "~/results/dcm-zurich-lesion-analysis/dcm-zurich-lesion-analysis_2026-06-25",
   "script"      : "~/code/dcm-zurich-lesion-analysis/lesion_analysis.sh",
   "jobs"        : 8,
   "include_list": [
