@@ -96,6 +96,11 @@ for f in "${file_t2_ax_seg}.nii.gz" "${file_t2_ax_discs}.nii.gz" "${file_t2_ax_l
 done
 
 # ------------------------------------------------------------------------------
+# Axial lesion QC so we can see the lesion and compare it to the warped atlas
+# ------------------------------------------------------------------------------
+sct_qc -i "${file_t2_ax}.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -d "${file_t2_ax_lesion}.nii.gz" -p sct_deepseg_lesion -plane axial -qc "${PATH_QC}" -qc-subject "lesion"
+
+# ------------------------------------------------------------------------------
 # Keep only the C3 and C7 disc labels for registration to PAM50 template as
 # -ref subject is only compatible with 1 or 2 landmarks labels
 # Details: https://docs.google.com/presentation/d/1QOtSp75yDt19VFF4k3vksUA28yUMWqfkcBnsnMuNkek/edit?slide=id.p66#slide=id.p66
@@ -145,10 +150,6 @@ else
     echo "✅ ${file_t2_ax_lesion}_analysis.xlsx created" >> "${PATH_LOG}/sct_analyze_lesion.log"
 fi
 
-# ------------------------------------------------------------------------------
-# Axial lesion QC so we can see the lesion and compare it to the warped atlas
-# ------------------------------------------------------------------------------
-sct_qc -i "${file_t2_ax}.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -d "${file_t2_ax_lesion}.nii.gz" -p sct_deepseg_lesion -plane axial -qc "${PATH_QC}" -qc-subject "${SUBJECT}"
 
 # ------------------------------------------------------------------------------
 # End
