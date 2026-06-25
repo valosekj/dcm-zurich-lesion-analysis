@@ -101,6 +101,11 @@ done
 sct_qc -i "${file_t2_ax}.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -d "${file_t2_ax_lesion}.nii.gz" -p sct_deepseg_lesion -plane axial -qc "${PATH_QC}" -qc-subject "lesion"
 
 # ------------------------------------------------------------------------------
+# Axial spinal cord QC
+# ------------------------------------------------------------------------------
+sct_qc -i "${file_t2_ax}.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -p sct_deepseg_sc -plane axial -qc "${PATH_QC}" -qc-subject "spinal_cord"
+
+# ------------------------------------------------------------------------------
 # Keep only the C3 and C7 disc labels for registration to PAM50 template as
 # -ref subject is only compatible with 1 or 2 landmarks labels
 # Details: https://docs.google.com/presentation/d/1QOtSp75yDt19VFF4k3vksUA28yUMWqfkcBnsnMuNkek/edit?slide=id.p66#slide=id.p66
