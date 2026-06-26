@@ -127,7 +127,7 @@ sct_register_to_template \
   -s "${file_t2_ax_seg}.nii.gz" \
   -ldisc "${file_t2_ax_discs}_C3C7.nii.gz" \
   -ref subject \
-  -param step=1,type=seg,algo=centermassrot,iter=10:step=2,type=seg,algo=bsplinesyn,slicewise=1,iter=10 \
+  -param step=1,type=seg,algo=centermassrot,iter=10:step=2,type=seg,algo=syn,slicewise=1,iter=15,smooth=1 \
   -c t2 \
   -ofolder t2w_ax_reg \
   -qc "${PATH_QC}" -qc-subject "${SUBJECT}"
