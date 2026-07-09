@@ -47,6 +47,9 @@ echo "PATH_RESULTS: ${PATH_RESULTS}"
 echo "PATH_LOG: ${PATH_LOG}"
 echo "PATH_QC: ${PATH_QC}"
 
+# Separate QC for lesion and warped atlas
+PATH_QC_LESION="${PATH_QC}_lesion"
+
 SUBJECT=$1
 
 # ------------------------------------------------------------------------------
@@ -98,7 +101,7 @@ done
 # ------------------------------------------------------------------------------
 # Axial lesion QC so we can see the lesion and compare it to the warped atlas
 # ------------------------------------------------------------------------------
-sct_qc -i "${file_t2_ax}.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -d "${file_t2_ax_lesion}.nii.gz" -p sct_deepseg_lesion -plane axial -qc "${PATH_QC}" -qc-subject "lesion"
+sct_qc -i "${file_t2_ax}.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -d "${file_t2_ax_lesion}.nii.gz" -p sct_deepseg_lesion -plane axial -qc "${PATH_QC_LESION}" -qc-subject "lesion"
 
 # ------------------------------------------------------------------------------
 # Axial spinal cord QC
@@ -139,7 +142,7 @@ sct_warp_template \
   -d "${file_t2_ax}.nii.gz" \
   -w t2w_ax_reg/warp_template2anat.nii.gz \
   -ofolder t2w_ax_reg \
-  -qc "${PATH_QC}" -qc-subject "${SUBJECT}"
+  -qc "${PATH_QC_LESION}" -qc-subject "warped_atlas"
 
 # Generate QC report to assess warped PAM50 levels
 sct_qc -i "${file_t2_ax}.nii.gz" -s t2w_ax_reg/template/PAM50_levels.nii.gz -p sct_label_vertebrae -qc "${PATH_QC}" -qc-subject "${SUBJECT}"
