@@ -145,7 +145,7 @@ sct_warp_template \
   -qc "${PATH_QC_LESION}" -qc-subject "warped_atlas"
 
 # Generate QC report to assess warped PAM50 levels
-sct_qc -i "${file_t2_ax}.nii.gz" -s t2w_ax_reg/template/PAM50_levels.nii.gz -p sct_label_vertebrae -qc "${PATH_QC}" -qc-subject "${SUBJECT}"
+sct_qc -i "${file_t2_ax}.nii.gz" -s t2w_ax_reg/template/PAM50_levels.nii.gz -p sct_label_vertebrae -qc "${PATH_QC}" -qc-subject "PAM50_levels_in_native_space"
 
 # ------------------------------------------------------------------------------
 # Compute atlas-based lesion metrics
