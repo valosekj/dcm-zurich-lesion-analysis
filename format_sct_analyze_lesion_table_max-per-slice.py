@@ -25,6 +25,24 @@ from pathlib import Path
 import pandas as pd
 
 
+def get_parser() -> argparse.ArgumentParser:
+    """Build and return the argument parser."""
+    ap = argparse.ArgumentParser(description=
+                                 "Format XLSX table produced by sct_analyze_lesion -perslice 1. "
+                                 "Processes per-slice data to find maximum percentages within each vertebral level.")
+    ap.add_argument("-xlsx", type=Path, help="Path to XLSX file.")
+    ap.add_argument("-sheet", choices=["lesion#1_distribution", "ROI_occupied_by_lesion"],
+                    default="ROI_occupied_by_lesion",
+                    help="Worksheet name. "
+                         "lesion#1_distribution - the lesion is the reference (the percentage of the lesion that overlaps with the different regions). "
+                         "ROI_occupied_by_lesion - the region is the reference (the percentage of the region affected by the lesion). "
+                         "(default: ROI_occupied_by_lesion).")
+    ap.add_argument("-out", type=Path, default=None,
+                    help="Optional path to save XLSX with the results. "
+                         "If not provided, results will only be printed to the console.")
+    return ap
+
+
 PAM50_MAP = {
     "PAM50_00": "WM left fasciculus gracilis",
     "PAM50_01": "WM right fasciculus gracilis",
@@ -272,19 +290,7 @@ def save_table_left_and_right_tracts_perslice(args, processed_df):
 
 def main() -> None:
     """Read per-slice XLSX table, compute maximum percentages per vertebral level, print and optionally save."""
-    ap = argparse.ArgumentParser(description=
-                                 "Format XLSX table produced by sct_analyze_lesion -perslice 1. "
-                                 "Processes per-slice data to find maximum percentages within each vertebral level.")
-    ap.add_argument("-xlsx", type=Path, help="Path to XLSX file.")
-    ap.add_argument("-sheet", choices=["lesion#1_distribution", "ROI_occupied_by_lesion"],
-                    default="ROI_occupied_by_lesion",
-                    help="Worksheet name. "
-                         "lesion#1_distribution - the lesion is the reference (the percentage of the lesion that overlaps with the different regions). "
-                         "ROI_occupied_by_lesion - the region is the reference (the percentage of the region affected by the lesion). "
-                         "(default: ROI_occupied_by_lesion).")
-    ap.add_argument("-out", type=Path, default=None,
-                    help="Optional path to save XLSX with the results. "
-                         "If not provided, results will only be printed to the console.")
+    ap = get_parser()
     args = ap.parse_args()
 
     # Check if args.xlsx is provided and if the path exists
