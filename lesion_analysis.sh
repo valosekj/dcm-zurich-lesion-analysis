@@ -10,7 +10,7 @@
 # NOTE: This script requires SCT v7.0 or higher.
 #
 # Usage:
-#     sct_run_batch -config config_lesion_analysis.json
+#     sct_run_batch -config config_lesion_analysis.json -exclude-yml ~/data/dcm-zurich/exclude.yml
 #
 # Example of config_lesion_analysis.json:
 # {
