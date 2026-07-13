@@ -151,7 +151,7 @@ sct_qc -i "${file_t2_ax}.nii.gz" -s t2w_ax_reg/template/PAM50_levels.nii.gz -p s
 # Compute atlas-based lesion metrics
 # ------------------------------------------------------------------------------
 status=0
-sct_analyze_lesion -m "${file_t2_ax_lesion}.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -f t2w_ax_reg || status=$?
+sct_analyze_lesion -m "${file_t2_ax_lesion}.nii.gz" -s "${file_t2_ax_seg}.nii.gz" -f t2w_ax_reg -perslice 1 || status=$?
 
 if [ $status -ne 0 ]; then
     echo "❌ sct_analyze_lesion failed for ${SUBJECT}" >> "${PATH_LOG}/sct_analyze_lesion.log"
