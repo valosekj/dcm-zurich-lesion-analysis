@@ -1,45 +1,64 @@
 """
-Script to format XLSX table produced by `sct_analyze_lesion -perslice 1` (i.e., one row per slice).
-This script processes per-slice data from the "ROI_occupied_by_lesion" Excel sheet where each row represents a slice,
-groups them by vertebral level, and gets the maximum percentage across slices within each vertebral level.
-The results are saved in two formats:
-    1. Left and right tracts combined (e.g., "Lateral corticospinal tracts").
-    2. Left and right tracts kept separate.
+Script to format XLSX files produced by `sct_analyze_lesion -perslice 1` (i.e., one row per slice) for
+multiple subjects and summarize them into a single XLSX table (one row per subject).
 
-Sample output table:
-        Vertebral level     Spinal lemniscus (Spinothalamic + Spinoreticular tracts) [%]
-                     C3     95
-                     C4     50
-  Maximum across levels     95
+For each subject XLSX, the per-slice data from the "ROI_occupied_by_lesion" sheet is processed for the
+left (PAM50_12) and right (PAM50_13) spinal lemniscus separately, as follows:
+    1. Within each vertebral level, take the max across that level's slices.
+    2. Across vertebral levels, take the max of those per-level maxima.
+The left and right sides are handled independently, so their maxima may occur at different slices (and different
+vertebral levels).
+
+Input: a directory containing per-subject XLSX files named like (output of `sct_analyze_lesion` run using
+`sct_run_batch`):
+    sub-XXX_ses-YYY_acq-axial_T2w_label-lesion_analysis.xlsx
+
+Sample output table (one row per subject):
+        Subject   Session   Left spinal lemniscus [%]   Left level   Right spinal lemniscus [%]   Right level
+        sub-001   ses-M0    36.20                       C4           18.90                        C5
+        sub-008   ses-M0    0.00                                     31.28                        C4
+        ...
 
 Usage:
     source ${SCT_DIR}/python/etc/profile.d/conda.sh
     conda activate venv_sct
-    python format_sct_analyze_lesion_table_max-per-slice.py --xlsx input.xlsx
+    python format_sct_analyze_lesion_table_max-per-slice.py -i /path/to/results -o all_subjects.xlsx
 """
 
-#!/usr/bin/env python3
-from __future__ import annotations
 import argparse
+import re
 from pathlib import Path
 import pandas as pd
 
 
 def get_parser() -> argparse.ArgumentParser:
     """Build and return the argument parser."""
-    ap = argparse.ArgumentParser(description=
-                                 "Format XLSX table produced by sct_analyze_lesion -perslice 1. "
-                                 "Processes per-slice data to find maximum percentages within each vertebral level.")
-    ap.add_argument("-xlsx", type=Path, help="Path to XLSX file.")
+    ap = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=
+        "Format XLSX files produced by sct_analyze_lesion -perslice 1 for multiple subjects.\n"
+        "For each subject, for the left (PAM50_12) and right (PAM50_13) spinal lemniscus separately:\n"
+        "  1. Within each vertebral level, take the max across that level's slices.\n"
+        "  2. Across vertebral levels, take the max of those per-level maxima.\n"
+        "Left and right are handled independently, so their maxima may occur at different\n"
+        "vertebral levels. All subjects are summarized in a single XLSX file (one row per subject).")
+    ap.add_argument("-i", "--input-dir", type=Path, required=True,
+                    help="Path to the directory containing per-subject XLSX files "
+                         "named like 'sub-XXX_ses-YYY_..._label-lesion_analysis.xlsx'. "
+                         "(output of `sct_analyze_lesion` run using sct_run_batch)")
     ap.add_argument("-sheet", choices=["lesion#1_distribution", "ROI_occupied_by_lesion"],
                     default="ROI_occupied_by_lesion",
                     help="Worksheet name. "
                          "lesion#1_distribution - the lesion is the reference (the percentage of the lesion that overlaps with the different regions). "
                          "ROI_occupied_by_lesion - the region is the reference (the percentage of the region affected by the lesion). "
                          "(default: ROI_occupied_by_lesion).")
-    ap.add_argument("-out", type=Path, default=None,
-                    help="Optional path to save XLSX with the results. "
-                         "If not provided, results will only be printed to the console.")
+    ap.add_argument("-o", "--out", type=Path, default=None,
+                    help="Optional path to save the summary XLSX with all subjects. "
+                         "If not provided, defaults to '<input-dir>/spinal_lemniscus_perslice_max_all_subjects.xlsx'.")
+    ap.add_argument("-debug", "--debug", action="store_true",
+                    help="Also report the slice (the 'row' index) from which each side's maximum is extracted. "
+                         "Adds 'Left max slice' and 'Right max slice' columns to the output (each at its own "
+                         "side's peak vertebral level, so the two may differ).")
     return ap
 
 
@@ -87,6 +106,9 @@ PAM50_MAP = {
     "ventral funiculi": "Ventral columns",
 }
 
+# Left and right spinal lemniscus (spinothalamic + spinoreticular tracts)
+SPINAL_LEMNISCUS = ["PAM50_12", "PAM50_13"]
+
 
 def load_sheet_perslice(xlsx_path: Path, sheet: str) -> pd.DataFrame:
     """Load the Excel sheet for per-slice analysis and sanitize rows/columns.
@@ -115,6 +137,8 @@ def load_sheet_perslice(xlsx_path: Path, sheet: str) -> pd.DataFrame:
     df = df[pd.to_numeric(df["row"], errors='coerce').notna()]
 
     # Replace NaN with 0
+    # Context: the last several columns (WM, GM, dorsal columns, etc) contain NaN, use 0 instead to be consistent with
+    # the other columns
     df = df.fillna(0)
 
     # Ensure row is numeric
@@ -123,7 +147,7 @@ def load_sheet_perslice(xlsx_path: Path, sheet: str) -> pd.DataFrame:
     return df
 
 
-def process_perslice_data(df: pd.DataFrame, columns_to_analyze: list) -> pd.DataFrame:
+def _process_perslice_data(df: pd.DataFrame, columns_to_analyze: list) -> pd.DataFrame:
     """Process per-slice data to find maximum percentages within each vertebral level.
 
     Args:
@@ -146,7 +170,7 @@ def process_perslice_data(df: pd.DataFrame, columns_to_analyze: list) -> pd.Data
         # Create result row for this vertebral level
         result_row = {'vert_level': vert_level}
 
-        # For each tract/region column, find the maximum percentage across all slices
+        # For each tract column, find the maximum percentage across all slices
         for column in columns_to_analyze:
             if column in level_data.columns:
                 max_percentage = level_data[column].max()
@@ -159,171 +183,163 @@ def process_perslice_data(df: pd.DataFrame, columns_to_analyze: list) -> pd.Data
     return pd.DataFrame(result_data)
 
 
-def save_table_combined_tracts_perslice(args, processed_df, spinal_lemniscus):
-    """Save table with left and right tracts combined for per-slice analysis."""
-    # Make a copy to avoid modifying the original
-    filtered_df = processed_df.copy()
+def parse_subject_session(filename: str) -> tuple[str, str]:
+    """Extract BIDS 'sub-XXX' and 'ses-YYY' entities from a filename.
 
-    # Combine the left and right spinal lemniscus tracts
-    if all(tract in filtered_df.columns for tract in spinal_lemniscus):
-        filtered_df["Spinal lemniscus"] = filtered_df[spinal_lemniscus].mean(axis=1)
-        # Drop the individual columns
-        filtered_df = filtered_df.drop(columns=spinal_lemniscus)
+    Args:
+        filename: File name (or stem) to parse.
 
-    # Rename columns based on PAM50_MAP
-    column_rename_map = {"vert_level": "Vertebral level"}
-    for col in filtered_df.columns:
-        if col in PAM50_MAP:
-            column_rename_map[col] = PAM50_MAP[col]
-    filtered_df = filtered_df.rename(columns=column_rename_map)
-
-    # Define the desired column order (after renaming)
-    desired_order = ["Vertebral level",
-                     "Spinal lemniscus"]
-
-    # Ensure the columns exist in the dataframe
-    final_order = ["Vertebral level"] + [col for col in desired_order[1:] if col in filtered_df.columns]
-
-    # Reorder the columns
-    filtered_df = filtered_df[final_order]
-
-    # Add '[%]' suffix to column names except 'Vertebral level'
-    filtered_df.columns = [
-        col if col == "Vertebral level" else f"{col} [%]"
-        for col in filtered_df.columns
-    ]
-
-    # Round numbers to two decimals
-    for col in filtered_df.columns:
-        if col != "Vertebral level":
-            filtered_df[col] = filtered_df[col].round(2)
-
-    # Format 'Vertebral level' as 'C1', 'C2', ...
-    filtered_df["Vertebral level"] = filtered_df["Vertebral level"].apply(lambda x: f"C{int(x)}")
-
-    # Drop rows where all percentage columns are zero
-    percentage_columns = [col for col in filtered_df.columns if col != "Vertebral level"]
-    filtered_df = filtered_df[(filtered_df[percentage_columns] != 0).any(axis=1)]
-    filtered_df = filtered_df.reset_index(drop=True)
-
-    # Add a new row 'Maximum across vertebral levels'
-    max_row = {"Vertebral level": "Maximum across levels"}
-    for col in percentage_columns:
-        max_row[col] = filtered_df[col].max()
-    filtered_df = pd.concat([filtered_df, pd.DataFrame([max_row])], ignore_index=True)
-
-    # Print the formatted table
-    print("Per-slice analysis - Maximum percentages per vertebral level:")
-    print(filtered_df.to_string(index=False))
-
-    # Save to Excel if output path is provided
-    if args.out is not None:
-        output_path = args.out
-        if not str(output_path).endswith('.xlsx'):
-            output_path = str(output_path) + '.xlsx'
-        output_path = str(output_path).replace('.xlsx', '_perslice_combined.xlsx')
-        filtered_df.to_excel(output_path, index=False)
-        print(f"Results saved to {output_path}")
+    Returns:
+        Tuple of (subject, session); missing entities are returned as empty strings.
+    """
+    sub_match = re.search(r'(sub-[A-Za-z0-9]+)', filename)
+    ses_match = re.search(r'(ses-[A-Za-z0-9]+)', filename)
+    subject = sub_match.group(1) if sub_match else filename
+    session = ses_match.group(1) if ses_match else ""
+    return subject, session
 
 
-def save_table_left_and_right_tracts_perslice(args, processed_df):
-    """Save table with left and right tracts separately for per-slice analysis."""
-    # Make a copy to avoid modifying the original
-    filtered_df = processed_df.copy()
+def _side_max(processed_df: pd.DataFrame, filtered_df: pd.DataFrame, col: str) -> dict:
+    """Find maximum across vertebral levels for one side (left or right).
 
-    # Rename columns based on PAM50_MAP
-    column_rename_map = {"vert_level": "Vertebral level"}
-    for col in filtered_df.columns:
-        if col in PAM50_MAP:
-            column_rename_map[col] = PAM50_MAP[col]
-    filtered_df = filtered_df.rename(columns=column_rename_map)
+    Step 1 (within-level max) is already applied in ``processed_df``; this takes the max of those
+    per-level maxima (step 2), then finds the slice ('row') that produced it at that peak level.
 
-    # Define the desired column order (after renaming)
-    desired_order = ["Vertebral level",
-                     "Left spinal lemniscus",
-                     "Right spinal lemniscus"]
+    Args:
+        processed_df: Per-level maxima (output of `_process_perslice_data`).
+        filtered_df: The per-slice data (with 'row', 'vert_level' and the tract column).
+        col: The tract column for this side (e.g., 'PAM50_12').
 
-    # Ensure the columns exist in the dataframe
-    final_order = ["Vertebral level"] + [col for col in desired_order[1:] if col in filtered_df.columns]
+    Returns:
+        Dict with 'value' (float, %), 'level' (int vertebral level) and 'slice' (int 'row'). 'level'
+        and 'slice' are None when the value is 0 (no lesion in this side).
+    """
+    if col not in processed_df.columns:
+        return {"value": 0.0, "level": None, "slice": None}
 
-    # Reorder the columns
-    filtered_df = filtered_df[final_order]
+    # Max across vertebral levels of the per-level maxima
+    idx_max = processed_df[col].idxmax()
+    value = float(processed_df.loc[idx_max, col])
+    if value <= 0:
+        return {"value": 0.0, "level": None, "slice": None}
 
-    # Add '[%]' suffix to column names except 'Vertebral level'
-    filtered_df.columns = [
-        col if col == "Vertebral level" else f"{col} [%]"
-        for col in filtered_df.columns
-    ]
+    peak_level = processed_df.loc[idx_max, "vert_level"]
+    # Slice ('row') that produced this side's maximum at its peak level
+    level_slices = filtered_df[filtered_df["vert_level"] == peak_level]
+    slice_idx = int(level_slices.loc[level_slices[col].idxmax(), "row"])
+    return {"value": value, "level": int(peak_level), "slice": slice_idx}
 
-    # Round numbers to integers
-    for col in filtered_df.columns:
-        if col != "Vertebral level":
-            filtered_df[col] = filtered_df[col].round().astype(int)
 
-    # Format 'Vertebral level' as 'C1', 'C2', ...
-    filtered_df["Vertebral level"] = filtered_df["Vertebral level"].apply(lambda x: f"C{int(x)}")
+def compute_subject_max_spinal_lemniscus(xlsx_path: Path, sheet: str) -> dict | None:
+    """Compute the maximum left and right spinal lemniscus percentages for one subject.
 
-    # Drop rows where all percentage columns are zero
-    percentage_columns = [col for col in filtered_df.columns if col != "Vertebral level"]
-    filtered_df = filtered_df[(filtered_df[percentage_columns] != 0).any(axis=1)]
-    filtered_df = filtered_df.reset_index(drop=True)
+    Left (PAM50_12) and right (PAM50_13) are reduced independently: within each vertebral level take
+    the max across slices (step 1), then take the max of those per-level maxima across levels (step 2).
+    No averaging is performed, so the two sides may peak at different vertebral levels / slices.
 
-    # Add a new row 'Maximum across vertebral levels'
-    max_row = {"Vertebral level": "Maximum across levels"}
-    for col in percentage_columns:
-        max_row[col] = filtered_df[col].max()
-    filtered_df = pd.concat([filtered_df, pd.DataFrame([max_row])], ignore_index=True)
+    Args:
+        xlsx_path: Path to the subject's XLSX file.
+        sheet: Sheet name to read.
 
-    # Print the formatted table
-    print("\nPer-slice analysis - Maximum percentages per vertebral level (separate left/right tracts):")
-    print(filtered_df)
+    Returns:
+        Dict with 'left'/'right' (floats, %), 'left_level'/'right_level' (int) and
+        'left_slice'/'right_slice' (int 'row'), or None if the required data is missing. Levels/slices
+        are None for a side whose maximum is 0.
+    """
+    df = load_sheet_perslice(xlsx_path, sheet)
 
-    # Save to Excel if output path is provided
-    if args.out is not None:
-        output_path = args.out
-        if not str(output_path).endswith('.xlsx'):
-            output_path = str(output_path) + '.xlsx'
-        output_path = str(output_path).replace('.xlsx', '_perslice_left_and_right_tracts_RST.xlsx')
-        filtered_df.to_excel(output_path, index=False)
-        print(f"Results saved to {output_path}")
+    if 'vert_level' not in df.columns:
+        print(f"  Warning: 'vert_level' column not found in {xlsx_path.name}. Skipping.")
+        return None
+
+    present_tracts = [col for col in SPINAL_LEMNISCUS if col in df.columns]
+    if not present_tracts:
+        print(f"  Warning: spinal lemniscus columns {SPINAL_LEMNISCUS} not found in {xlsx_path.name}. Skipping.")
+        return None
+
+    # Keep only the identification columns plus the spinal lemniscus tracts
+    columns_to_keep = ["row", "vert_level"] + present_tracts
+    filtered_df = df[columns_to_keep].copy()
+
+    # Step 1: maximum percentage per vertebral level (across slices) for each side
+    processed_df = _process_perslice_data(filtered_df, present_tracts)
+    left_col, right_col = SPINAL_LEMNISCUS
+    if processed_df.empty:
+        return {"left": 0.0, "right": 0.0, "left_level": None, "right_level": None,
+                "left_slice": None, "right_slice": None}
+
+    # Step 2: maximum across vertebral levels, independently for left/right sides
+    left = _side_max(processed_df, filtered_df, left_col)
+    right = _side_max(processed_df, filtered_df, right_col)
+
+    return {"left": left["value"], "right": right["value"],
+            "left_level": left["level"], "right_level": right["level"],
+            "left_slice": left["slice"], "right_slice": right["slice"]}
 
 
 def main() -> None:
-    """Read per-slice XLSX table, compute maximum percentages per vertebral level, print and optionally save."""
+    """Summarize the maximum left and right spinal lemniscus percentages across all subjects in a directory."""
     ap = get_parser()
     args = ap.parse_args()
 
-    # Check if args.xlsx is provided and if the path exists
-    if args.xlsx is None:
-        print("Error: --xlsx argument is required.")
-        return
-    if not args.xlsx.exists():
-        print(f"Error: The file {args.xlsx} does not exist.")
+    input_dir = args.input_dir
+    if not input_dir.is_dir():
+        print(f"Error: The input directory {input_dir} does not exist.")
         return
 
-    # Load the per-slice data
-    df = load_sheet_perslice(args.xlsx, args.sheet)
-
-    # Check if required columns exist
-    if 'vert_level' not in df.columns:
-        print("Error: 'vert_level' column not found in the data. This script requires per-slice data with vertebral level information.")
+    # Collect per-subject XLSX files (skip temporary Excel lock files like '~$...')
+    xlsx_files = sorted(
+        f for f in input_dir.glob("*_label-lesion_analysis.xlsx")
+        if not f.name.startswith("~$") and not f.name.startswith(".")
+    )
+    if not xlsx_files:
+        print(f"Error: No '*_label-lesion_analysis.xlsx' files found in {input_dir}.")
         return
 
-    # Add spinal lemniscus columns (spinothalamic+spinoreticular)
-    spinal_lemniscus = ["PAM50_12", "PAM50_13"]  # left and right spinal lemniscus
+    print(f"Found {len(xlsx_files)} subject file(s) in {input_dir}")
 
-    # Filter dataframe to keep only the selected columns plus required identification columns
-    columns_to_keep = ["row", "vert_level"] + [col for col in spinal_lemniscus if col in df.columns]
-    filtered_df = df[columns_to_keep].copy()
+    rows = []
+    for xlsx_path in xlsx_files:
+        subject, session = parse_subject_session(xlsx_path.name)
+        print(f"Processing {subject} {session} ...")
+        result = compute_subject_max_spinal_lemniscus(xlsx_path, args.sheet)
+        if result is None:
+            continue
+        left_level = result["left_level"]
+        right_level = result["right_level"]
+        row = {
+            "Subject": subject,
+            "Session": session,
+            "Left spinal lemniscus [%]": round(result["left"], 2),
+            "Left level": f"C{left_level}" if left_level is not None else "",
+        }
+        if args.debug:
+            row["Left max slice"] = result["left_slice"] if result["left_slice"] is not None else ""
+        row["Right spinal lemniscus [%]"] = round(result["right"], 2)
+        row["Right level"] = f"C{right_level}" if right_level is not None else ""
+        if args.debug:
+            row["Right max slice"] = result["right_slice"] if result["right_slice"] is not None else ""
+        rows.append(row)
 
-    # print(f"Processing per-slice data with {len(filtered_df)} slices across {len(filtered_df['vert_level'].unique())} vertebral levels...")
+    if not rows:
+        print("Error: No subjects could be processed.")
+        return
 
-    # Process the per-slice data to get maximum percentages per vertebral level
-    processed_df = process_perslice_data(filtered_df, spinal_lemniscus)
+    summary_df = pd.DataFrame(rows).sort_values(by="Subject").reset_index(drop=True)
 
-    # Generate both types of output tables
-    save_table_combined_tracts_perslice(args, processed_df, spinal_lemniscus)
-    # save_table_left_and_right_tracts_perslice(args, processed_df)
+    # Print the formatted table
+    print("\nPer-slice analysis - Maximum spinal lemniscus percentage per subject:")
+    print(summary_df.to_string(index=False))
+
+    # Determine output path
+    output_path = args.out
+    if output_path is None:
+        output_path = input_dir / "spinal_lemniscus_perslice_max_all_subjects.xlsx"
+    if not str(output_path).endswith('.xlsx'):
+        output_path = Path(str(output_path) + '.xlsx')
+
+    summary_df.to_excel(output_path, index=False)
+    print(f"\nResults saved to {output_path}")
 
 
 if __name__ == "__main__":
