@@ -7,7 +7,12 @@
 #   2. Warp the white matter atlas to T2w axial space
 #   3. Compute atlas-based lesion metrics from the T2w axial lesion segmentation
 #
+# Manual spinal cord segmentation and disc labels are required (derivatives/labels). The manual lesion
+# segmentation is reused if present; otherwise, the lesion is segmented using SCIsegV2. The spinal cord
+# segmentation produced by SCIsegV2 is not used -- the manual one from derivatives/labels is used instead.
+#
 # NOTE: This script requires SCT v7.0 or higher.
+# NOTE: The SCIsegV2 fallback is meant to run on GPU (see `CUDA_VISIBLE_DEVICES=X SCT_USE_GPU=X sct_deepseg ...` below).
 #
 # Usage:
 #     sct_run_batch -config config_lesion_analysis.json
@@ -53,6 +58,33 @@ PATH_QC_LESION="${PATH_QC}_lesion"
 SUBJECT=$1
 
 # ------------------------------------------------------------------------------
+# FUNCTIONS
+# ------------------------------------------------------------------------------
+
+# Reuse manual lesion segmentation from derivatives/labels if present.
+# Otherwise run SCIsegV2. Note that SCIsegV2 produces both ${file}_sc_seg and ${file}_lesion_seg;
+# only the lesion is used -- the spinal cord segmentation is always taken from derivatives/labels.
+# Sets the global variable FILELESION (without extension) to the lesion segmentation to use.
+segment_lesion_if_does_not_exist(){
+  local file="$1"
+  local file_lesion_manual="$2"
+  FILELESIONMANUAL="${PATH_DATA}/derivatives/labels/${SUBJECT}/anat/${file_lesion_manual}.nii.gz"
+  echo "Looking for manual lesion segmentation: ${FILELESIONMANUAL}"
+  if [[ -e ${FILELESIONMANUAL} ]]; then
+    echo "✏️ [$(date '+%Y-%m-%d %H:%M:%S')] Manual lesion segmentation found --> using manual."
+    echo "✏️ [$(date '+%Y-%m-%d %H:%M:%S')] ${SUBJECT}: using manual lesion segmentation" >> "${PATH_LOG}/T2w_segmentation.log"
+    rsync -avzh --no-g "${FILELESIONMANUAL}" "${file_lesion_manual}.nii.gz"
+    FILELESION="${file_lesion_manual}"
+  else
+    echo "🤖 [$(date '+%Y-%m-%d %H:%M:%S')] Manual lesion segmentation missing --> running SCIsegV2."
+    echo "🤖 [$(date '+%Y-%m-%d %H:%M:%S')] ${SUBJECT}: running SCIsegV2 (manual lesion missing)" >> "${PATH_LOG}/T2w_segmentation.log"
+    CUDA_VISIBLE_DEVICES=0 SCT_USE_GPU=1 sct_deepseg lesion_sci_t2 -i "${file}.nii.gz" -qc "${PATH_QC_LESION}" -qc-subject "${SUBJECT}"
+    # SCIsegV2 outputs: ${file}_sc_seg.nii.gz (not used) and ${file}_lesion_seg.nii.gz
+    FILELESION="${file}_lesion_seg"
+  fi
+}
+
+# ------------------------------------------------------------------------------
 # SCRIPT STARTS HERE
 # ------------------------------------------------------------------------------
 # get starting time:
@@ -84,19 +116,24 @@ if [[ ! -e "${file_t2_ax}.nii.gz" ]]; then
     exit 1
 fi
 
-# Copy manual SC segmentation, disc labels, and lesion segmentation from derivatives/labels
+# Copy manual SC segmentation and disc labels from derivatives/labels
 rsync -avzh "${PATH_DATA}/derivatives/labels/${SUBJECT}/anat/${file_t2_ax_seg}.nii.gz" .
 rsync -avzh "${PATH_DATA}/derivatives/labels/${SUBJECT}/anat/${file_t2_ax_discs}.nii.gz" .
-rsync -avzh "${PATH_DATA}/derivatives/labels/${SUBJECT}/anat/${file_t2_ax_lesion}.nii.gz" .
 
 # Check that all required manual files are present
-for f in "${file_t2_ax_seg}.nii.gz" "${file_t2_ax_discs}.nii.gz" "${file_t2_ax_lesion}.nii.gz"; do
+for f in "${file_t2_ax_seg}.nii.gz" "${file_t2_ax_discs}.nii.gz"; do
     if [[ ! -e "$f" ]]; then
         echo "File $f does not exist" >> "${PATH_LOG}/missing_files.log"
         echo "ERROR: File $f does not exist. Exiting."
         exit 1
     fi
 done
+
+# ------------------------------------------------------------------------------
+# Lesion segmentation (reuse manual; fall back to SCIsegV2)
+# ------------------------------------------------------------------------------
+segment_lesion_if_does_not_exist "${file_t2_ax}" "${file_t2_ax_lesion}"
+file_t2_ax_lesion="${FILELESION}"
 
 # ------------------------------------------------------------------------------
 # Axial lesion QC so we can see the lesion and compare it to the warped atlas
