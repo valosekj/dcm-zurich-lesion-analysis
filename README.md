@@ -1,49 +1,39 @@
 # DCM Zurich — Lesion Analysis
 
-Atlas-based lesion analysis pipeline for DCM patients. 
-The pipeline registers the PAM50 template to the T2w axial image using disc labels and computes atlas-based lesion metrics.
+Lesion analysis pipelines for DCM patients, run per subject/session with `sct_run_batch`.
+
+| Script | Image | Steps |
+|--------|-------|-------|
+| `lesion_analysis_ax.sh` | T2w axial | PAM50 registration (C3 and C5 disc labels, `-ref subject`) → atlas warping → atlas-based `sct_analyze_lesion` |
+| `lesion_analysis_sag.sh` | T2w sagittal | SC + lesion segmentation → disc labeling → `sct_analyze_lesion` (length, width, midsagittal tissue bridges) |
+
+Manual files from `derivatives/labels` are reused when present:
+
+| File suffix | Axial | Sagittal |
+|-------------|-------|----------|
+| `_label-SC_seg` | required | otherwise SCIsegV2 (`sct_deepseg lesion_sci_t2`) |
+| `_label-lesion` | otherwise SCIsegV2 | otherwise SCIsegV2 |
+| `_labels-manual` (discs) | required | otherwise TotalSpineSeg (`sct_deepseg spine`) |
 
 ## Prerequisites
 
-- [Spinal Cord Toolbox (SCT)](https://spinalcordtoolbox.com)
-- Files copied from `derivatives/labels` into the working directory:
-  - `<sub>_<ses>_acq-axial_T2w_label-SC_seg.nii.gz` — SC segmentation
-  - `<sub>_<ses>_acq-axial_T2w_labels-manual.nii.gz` — disc labels -- note that only 2 disc labels are used as `sct_register_to_template -ref subject` supports only 2 labels.
-
-```console
-sct_label_utils -i "${file_t2_ax_discs}.nii.gz" -keep 3,7 -o "${file_t2_ax_discs}_C3C7.nii.gz"
-```
+- [Spinal Cord Toolbox (SCT)](https://spinalcordtoolbox.com) v7.0 or higher
+- GPU recommended for SCIsegV2 and TotalSpineSeg
 
 ## Usage
 
-Run the pipeline from the subject's session directory (where the NIfTI files live):
-
 ```bash
-bash /path/to/lesion_analysis.sh <sub_ID> <ses_ID>
+sct_run_batch -config config_lesion_analysis_ax.json
+sct_run_batch -config config_lesion_analysis_sag.json
 ```
 
-**Example:**
-
-```bash
-bash lesion_analysis.sh sub-080 ses-M0
-```
-
-## Pipeline Steps
-
-| Step | Input | Command | Output |
-|------|-------|---------|--------|
-| 1. Template registration to T2w ax (2 disc labels) | SC seg + disc labels | `sct_register_to_template` | `t2w_ax_reg/` |
-| 2. Atlas warping (T2w ax) | Warp from step 1 | `sct_warp_template` | `t2w_ax_reg/template/` |
-| 3. Lesion metrics | Lesion seg + warped atlas | `sct_analyze_lesion` | `*_lesion_analysis.xlsx` |
+Edit `path_data` and `path_output` in the config files before running.
 
 ## Outputs
 
 ```
-qc/                          # QC reports — open qc/index.html to review
-t2w_ax_reg/                  # T2w ax → template registration + warped atlas
-*_lesion_analysis.xlsx        # Atlas-based lesion metrics (per white matter tract)
+qc/            # QC reports (open qc/index.html); QCs are named by -qc-subject (e.g., sc_ax, lesion_sag, discs_manual)
+qc_lesion/     # axial script only: lesion and warped atlas QCs
+results/       # <lesion_file>_analysis.xlsx per subject/session
+log/           # per-subject logs; *_segmentation.log and *_disc_labels.log record manual vs. automatic sources
 ```
-
-## Notes
-
-- QC reports are generated after each major step; review `qc/index.html` to verify registration quality before proceeding.
