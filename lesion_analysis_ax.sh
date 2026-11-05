@@ -15,13 +15,13 @@
 # NOTE: The SCIsegV2 fallback is meant to run on GPU (see `CUDA_VISIBLE_DEVICES=X SCT_USE_GPU=X sct_deepseg ...` below).
 #
 # Usage:
-#     sct_run_batch -config config_lesion_analysis.json
+#     sct_run_batch -config config_lesion_analysis_ax.json
 #
-# Example of config_lesion_analysis.json:
+# Example of config_lesion_analysis_ax.json:
 # {
 #   "path_data"   : "<PATH_TO_DATASET>",
 #   "path_output" : "<PATH_TO_OUTPUT>",
-#   "script"      : "<PATH_TO_REPO>/dcm-zurich-lesion-analysis/lesion_analysis.sh",
+#   "script"      : "<PATH_TO_REPO>/dcm-zurich-lesion-analysis/lesion_analysis_ax.sh",
 #   "jobs"        : 8
 # }
 #
